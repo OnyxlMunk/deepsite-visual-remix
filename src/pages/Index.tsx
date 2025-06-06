@@ -1,16 +1,21 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Code, Palette, Zap, ArrowRight, Globe } from 'lucide-react';
+import { Sparkles, Code, Palette, Zap, ArrowRight, Globe, LogIn } from 'lucide-react';
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { websiteService } from '@/services/websiteService';
 
 const Index = () => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSite, setGeneratedSite] = useState(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -18,18 +23,37 @@ const Index = () => {
       return;
     }
 
+    if (!user) {
+      toast.error("Please log in to generate websites");
+      navigate("/auth");
+      return;
+    }
+
     setIsGenerating(true);
     
-    // Simulate AI generation
-    setTimeout(() => {
-      setIsGenerating(false);
+    try {
+      // Generate website using the service
+      const websiteData = await websiteService.generateWebsite({ prompt });
+      
+      // Save the generated website to Supabase
+      await websiteService.saveWebsite({
+        ...websiteData,
+        preview_image_url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop"
+      });
+
       setGeneratedSite({
-        title: "Generated Website",
-        description: "Your AI-powered website is ready!",
+        title: websiteData.title,
+        description: websiteData.description,
         preview: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop"
       });
+      
       toast.success("Website generated successfully!");
-    }, 3000);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("Failed to generate website. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const features = [
@@ -80,9 +104,28 @@ const Index = () => {
                 DeepSite
               </h1>
             </div>
-            <Badge variant="secondary" className="bg-purple-500/20 text-purple-200 border-purple-500/30">
-              AI-Powered
-            </Badge>
+            <div className="flex items-center space-x-4">
+              <Badge variant="secondary" className="bg-purple-500/20 text-purple-200 border-purple-500/30">
+                AI-Powered
+              </Badge>
+              {user ? (
+                <Button
+                  variant="outline"
+                  className="border-white/20 text-white hover:bg-white/10"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  Dashboard
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="border-white/20 text-white hover:bg-white/10"
+                  onClick={() => navigate('/auth')}
+                >
+                  <LogIn className="mr-2 h-4 w-4" /> Sign In
+                </Button>
+              )}
+            </div>
           </div>
         </header>
 
@@ -171,9 +214,11 @@ const Index = () => {
                   <Button variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/10">
                     Preview
                   </Button>
-                  <Button className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500">
-                    Download Code
-                  </Button>
+                  <Link to="/dashboard">
+                    <Button className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500">
+                      View in Dashboard
+                    </Button>
+                  </Link>
                 </div>
               </Card>
             </div>
@@ -197,9 +242,21 @@ const Index = () => {
               <p className="text-gray-300 mb-6 max-w-lg">
                 Join thousands of creators who are already building stunning websites with AI
               </p>
-              <Button className="bg-white text-purple-900 hover:bg-gray-100 font-medium px-8 py-3">
-                Start Creating Now
-              </Button>
+              {user ? (
+                <Button 
+                  onClick={() => navigate("/dashboard")} 
+                  className="bg-white text-purple-900 hover:bg-gray-100 font-medium px-8 py-3"
+                >
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => navigate("/auth")} 
+                  className="bg-white text-purple-900 hover:bg-gray-100 font-medium px-8 py-3"
+                >
+                  Start Creating Now
+                </Button>
+              )}
             </Card>
           </div>
         </main>
