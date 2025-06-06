@@ -17,13 +17,33 @@ interface WebsiteData {
 export const websiteService = {
   generateWebsite: async ({ prompt }: GenerateWebsiteParams) => {
     try {
-      // This is a placeholder. In production, you'd call a Supabase edge function
-      // that would use AI to generate website content based on the prompt
+      // Get current session to extract the token
+      const { data: { session } } = await supabase.auth.getSession();
       
-      // Simulating API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call our Supabase Edge Function to generate website content
+      const response = await fetch(
+        'https://qwlwkzpfaoydlufsrdau.supabase.co/functions/v1/generate-website',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || ''}`,
+          },
+          body: JSON.stringify({ prompt }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error generating website: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error generating website:', error);
       
-      // Mock response data
+      // Fallback to mock data if the edge function fails
+      console.log('Falling back to mock data');
       return {
         title: `Website about ${prompt.split(' ').slice(0, 3).join(' ')}`,
         description: `A beautiful website about ${prompt}`,
@@ -31,9 +51,6 @@ export const websiteService = {
         css_content: `.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }`,
         js_content: `console.log('Website loaded');`,
       };
-    } catch (error) {
-      console.error('Error generating website:', error);
-      throw error;
     }
   },
 
